@@ -1,0 +1,13 @@
+CREATE TYPE "Role" AS ENUM ('customer', 'admin');
+CREATE TYPE "OrderState" AS ENUM ('pending', 'awaiting_payment', 'paid', 'fulfilled', 'cancelled', 'refunded');
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "email" TEXT NOT NULL UNIQUE, "passwordHash" TEXT NOT NULL, "role" "Role" NOT NULL DEFAULT 'customer', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Product" ("id" TEXT PRIMARY KEY, "name" TEXT NOT NULL, "priceCents" INTEGER NOT NULL, "available" INTEGER NOT NULL, "version" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Cart" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL UNIQUE REFERENCES "User"("id"));
+CREATE TABLE "CartItem" ("id" TEXT PRIMARY KEY, "cartId" TEXT NOT NULL REFERENCES "Cart"("id") ON DELETE CASCADE, "productId" TEXT NOT NULL REFERENCES "Product"("id"), "quantity" INTEGER NOT NULL, UNIQUE("cartId", "productId"));
+CREATE TABLE "Order" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id"), "state" "OrderState" NOT NULL DEFAULT 'pending', "totalCents" INTEGER NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "OrderItem" ("id" TEXT PRIMARY KEY, "orderId" TEXT NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE, "productId" TEXT NOT NULL REFERENCES "Product"("id"), "quantity" INTEGER NOT NULL, "unitPrice" INTEGER NOT NULL);
+CREATE TABLE "Payment" ("id" TEXT PRIMARY KEY, "orderId" TEXT NOT NULL REFERENCES "Order"("id"), "providerId" TEXT NOT NULL UNIQUE, "status" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "IdempotencyRecord" ("key" TEXT PRIMARY KEY, "requestHash" TEXT NOT NULL, "statusCode" INTEGER NOT NULL, "response" JSONB NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "WebhookEvent" ("id" TEXT PRIMARY KEY, "type" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "OutboxEvent" ("id" TEXT PRIMARY KEY, "topic" TEXT NOT NULL, "aggregateId" TEXT NOT NULL, "payload" JSONB NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "publishedAt" TIMESTAMP(3));
+CREATE INDEX "OutboxEvent_publishedAt_createdAt_idx" ON "OutboxEvent"("publishedAt", "createdAt");

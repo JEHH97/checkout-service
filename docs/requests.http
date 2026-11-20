@@ -1,0 +1,28 @@
+@base = http://localhost:3001
+@token = replace-with-access-token
+
+### Register a customer
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{"email":"customer@example.test","password":"DemoPass123!"}
+
+### List products
+GET {{base}}/products?page=1&limit=10
+
+### Add product to cart
+POST {{base}}/cart/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"productId":"canvas-backpack","quantity":1}
+
+### Create order (retry-safe)
+POST {{base}}/orders
+Authorization: Bearer {{token}}
+Idempotency-Key: demo-order-001
+
+### Start payment (retry-safe)
+POST {{base}}/payments/ORDER_ID/intents
+Authorization: Bearer {{token}}
+Idempotency-Key: demo-payment-001

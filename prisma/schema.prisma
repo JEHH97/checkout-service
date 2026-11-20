@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  admin
+}
+
+enum OrderState {
+  pending
+  awaiting_payment
+  paid
+  fulfilled
+  cancelled
+  refunded
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(customer)
+  cart         Cart?
+  orders       Order[]
+  createdAt    DateTime  @default(now())
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  name       String
+  priceCents Int
+  available  Int
+  version    Int         @default(0)
+  createdAt  DateTime    @default(now())
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+}
+
+model Cart {
+  id     String     @id @default(cuid())
+  userId String     @unique
+  user   User       @relation(fields: [userId], references: [id])
+  items  CartItem[]
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  state      OrderState  @default(pending)
+  totalCents Int
+  items      OrderItem[]
+  payments   Payment[]
+  createdAt  DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  orderId   String
+  providerId String  @unique
+  status    String
+  order     Order    @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model IdempotencyRecord {
+  key         String   @id
+  requestHash String
+  statusCode  Int
+  response    Json
+  createdAt   DateTime @default(now())
+}
+
+model WebhookEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+}
+
+model OutboxEvent {
+  id          String    @id @default(cuid())
+  topic       String
+  aggregateId String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  @@index([publishedAt, createdAt])
+}
