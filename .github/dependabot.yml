@@ -1,24 +1,24 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     labels:
       - dependencies
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
 
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     labels:
       - dependencies
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     groups:
       minor-and-patch:
         update-types:
@@ -26,14 +26,14 @@ updates:
           - patch
 
   - package-ecosystem: docker
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     labels:
       - dependencies
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     groups:
       minor-and-patch:
         update-types:

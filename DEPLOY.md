@@ -1,5 +1,7 @@
 # Free demo deployment: Neon + Render
 
+For a self-hosted deployment using the published GHCR image, see [DEPLOY-DOCKER.md](DEPLOY-DOCKER.md).
+
 This guide deploys the fake-payment demo. It creates one Render Free web service (`checkout-api`); the BullMQ processor runs in the API process. It does not create its own Key Value instance: it reuses the one owned by `go-shortener`. No separate worker, Render PostgreSQL service, or Stripe account is needed. The hosted URL stays out of the README until the owner deploys it.
 
 Render allows only **one free Key Value instance per workspace**. Deploy `go-shortener` first; it creates the shared `go-shortener-redis` instance. This service then points `REDIS_URL` at that instance using database index `/1`, while go-shortener keeps the default index `0`.

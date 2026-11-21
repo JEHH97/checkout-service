@@ -94,6 +94,8 @@ npm run check
 
 HTTP examples are in [`docs/requests.http`](docs/requests.http). Free-tier demo deployment instructions are in [`DEPLOY.md`](DEPLOY.md). To use Stripe instead of the demo adapter, configure the Stripe test keys and `PAYMENT_ADAPTER=stripe` in a separate deployment; the demo blueprint does not configure Stripe.
 
+For a self-hosted GHCR image deployment with your own PostgreSQL and Redis, see [`DEPLOY-DOCKER.md`](DEPLOY-DOCKER.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
