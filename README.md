@@ -48,6 +48,9 @@ stateDiagram-v2
 - **Inventory concurrency:** checkout reserves availability inside a serializable transaction with a version-checked conditional update; concurrent attempts cannot drive stock negative. Reservations are reflected when the order is created.
 - **Webhook safety:** signature verification precedes persistence; event IDs are unique, and accepted events are queued for retryable processing.
 - **Payments:** select `PAYMENT_ADAPTER=fake` locally or `stripe` for Stripe test mode. Tests use the fake adapter only.
+- **Access control:** customer order reads, cancellation, and payment initiation are owner-only and return `404` for another customer's order. Refunds are restricted to `admin`; the gated demo-pay route requires authentication and permits only the owner or an admin.
+- **Authentication and abuse controls:** JWTs expire after `JWT_EXPIRES_IN` (default `1h`). The global IP limit defaults to 120 requests per minute, with 8 requests per minute on login and registration. Configure these with `THROTTLE_LIMIT`, `THROTTLE_TTL_MS`, and `AUTH_THROTTLE_LIMIT`. Tests use higher limits to avoid shared-IP test interference.
+- **Proxy IPs:** `TRUST_PROXY_HOPS` defaults to `1` for the single proxy in front of Render; rate limits use the forwarded client IP. Set it to the actual trusted proxy hop count for other deployments and do not trust untrusted forwarded headers.
 
 ## Run locally
 
@@ -78,7 +81,7 @@ The hosted demo remains **coming soon** until it is deployed. When available, op
 4. Call `POST /orders` with a unique `Idempotency-Key`. Copy the returned order `id`, then call `POST /payments/{orderId}/intents` with another unique `Idempotency-Key`.
 5. Call `POST /demo/orders/{orderId}/pay` to simulate payment, then `GET /orders/{orderId}`. The order should show `state: "paid"`.
 
-The fake-payment completion route is enabled only when `DEMO_MODE=true` and `PAYMENT_ADAPTER=fake`; production deployments must leave `DEMO_MODE` unset or false. The API process itself runs the BullMQ processor, so the demo has no separate worker service.
+The fake-payment completion route is enabled only when `DEMO_MODE=true` and `PAYMENT_ADAPTER=fake`; it also requires a bearer token and permits the order owner or an admin. Production deployments must leave `DEMO_MODE` unset or false. The API process itself runs the BullMQ processor, so the demo has no separate worker service.
 
 ## Tests and checks
 

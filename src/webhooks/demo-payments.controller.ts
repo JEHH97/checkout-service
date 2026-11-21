@@ -1,10 +1,21 @@
-import { ConflictException, Controller, NotFoundException, Param, Post } from '@nestjs/common';
+import {
+  ConflictException,
+  Controller,
+  NotFoundException,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { Request } from 'express';
 import { PrismaService } from '../prisma.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('demo')
+@UseGuards(JwtAuthGuard)
 @Controller('demo')
 export class DemoPaymentsController {
   constructor(
@@ -13,7 +24,10 @@ export class DemoPaymentsController {
   ) {}
 
   @Post('orders/:orderId/pay')
-  async completeFakePayment(@Param('orderId') orderId: string) {
+  async completeFakePayment(
+    @Param('orderId') orderId: string,
+    @Req() req: Request & { user?: { sub: string; role: string } },
+  ) {
     if (process.env.DEMO_MODE !== 'true' || process.env.PAYMENT_ADAPTER !== 'fake') {
       throw new NotFoundException();
     }
@@ -23,6 +37,8 @@ export class DemoPaymentsController {
       include: { order: true },
     });
     if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.order.userId !== req.user!.sub && req.user!.role !== 'admin')
+      throw new NotFoundException('Payment not found');
     if (payment.order.state === 'paid') {
       return { received: true, duplicate: true, orderId };
     }

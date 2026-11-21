@@ -3,6 +3,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma.service';
+import { AuthController } from '../../src/auth/auth.controller';
+import { rateLimitConfig } from '../../src/common/rate-limit.config';
 
 describe('checkout HTTP flow', () => {
   let app: INestApplication;
@@ -116,10 +118,16 @@ describe('checkout HTTP flow', () => {
     expect(payment.body.status).toBe('requires_payment_method');
 
     process.env.DEMO_MODE = 'false';
-    await request(server).post(`/demo/orders/${order.body.id}/pay`).expect(404);
+    await request(server)
+      .post(`/demo/orders/${order.body.id}/pay`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
     process.env.DEMO_MODE = 'true';
 
-    await request(server).post(`/demo/orders/${order.body.id}/pay`).expect(201);
+    await request(server)
+      .post(`/demo/orders/${order.body.id}/pay`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
     let state = 'awaiting_payment';
     for (let attempt = 0; attempt < 30 && state !== 'paid'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -134,6 +142,86 @@ describe('checkout HTTP flow', () => {
 
   it('redirects the root URL to the Swagger docs', async () => {
     await request(server).get('/').expect(302).expect('Location', '/docs');
+  });
+
+  it('configures stricter throttles on registration and login', () => {
+    const { authLimit, ttl } = rateLimitConfig();
+    for (const handler of [AuthController.prototype.login, AuthController.prototype.register]) {
+      expect(Reflect.getMetadata('THROTTLER:LIMITdefault', handler)).toBe(authLimit);
+      expect(Reflect.getMetadata('THROTTLER:TTLdefault', handler)).toBe(ttl);
+    }
+  });
+
+  it('prevents another customer from operating on an order and restricts refunds to admins', async () => {
+    const ownerEmail = `owner-${Date.now()}@example.test`;
+    const otherEmail = `other-${Date.now()}@example.test`;
+    const owner = await request(server)
+      .post('/auth/register')
+      .send({ email: ownerEmail, password: 'DemoPass123!' })
+      .expect(201);
+    const other = await request(server)
+      .post('/auth/register')
+      .send({ email: otherEmail, password: 'DemoPass123!' })
+      .expect(201);
+    const product = await prisma.product.create({
+      data: { name: 'Owner Only Item', priceCents: 2200, available: 1 },
+    });
+    await request(server)
+      .post('/cart/items')
+      .set('Authorization', `Bearer ${owner.body.accessToken as string}`)
+      .send({ productId: product.id, quantity: 1 })
+      .expect(201);
+    const order = await request(server)
+      .post('/orders')
+      .set('Authorization', `Bearer ${owner.body.accessToken as string}`)
+      .set('Idempotency-Key', 'ownership-order')
+      .expect(201);
+    await request(server)
+      .post(`/payments/${order.body.id}/intents`)
+      .set('Authorization', `Bearer ${owner.body.accessToken as string}`)
+      .set('Idempotency-Key', 'ownership-payment')
+      .expect(201);
+
+    const otherToken = other.body.accessToken as string;
+    await request(server)
+      .post(`/payments/${order.body.id}/intents`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .set('Idempotency-Key', 'ownership-attack-payment')
+      .expect(404);
+    await request(server)
+      .get(`/orders/${order.body.id}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(server)
+      .post(`/orders/${order.body.id}/cancel`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(server)
+      .post(`/demo/orders/${order.body.id}/pay`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(server)
+      .post(`/payments/${order.body.id}/refunds`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(403);
+    await request(server)
+      .post(`/payments/${order.body.id}/refunds`)
+      .set('Authorization', `Bearer ${owner.body.accessToken as string}`)
+      .expect(403);
+
+    await prisma.order.update({ where: { id: order.body.id as string }, data: { state: 'paid' } });
+    await prisma.user.update({
+      where: { id: other.body.userId as string },
+      data: { role: 'admin' },
+    });
+    const admin = await request(server)
+      .post('/auth/login')
+      .send({ email: otherEmail, password: 'DemoPass123!' })
+      .expect(201);
+    await request(server)
+      .post(`/payments/${order.body.id}/refunds`)
+      .set('Authorization', `Bearer ${admin.body.accessToken as string}`)
+      .expect(201);
   });
 
   it('releases reserved stock when a customer cancels before payment', async () => {

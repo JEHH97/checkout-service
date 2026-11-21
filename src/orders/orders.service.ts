@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -99,8 +98,7 @@ export class OrdersService {
   async transition(id: string, next: OrderState, ownerId?: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true } });
     if (!order) throw new NotFoundException('Order not found');
-    if (ownerId && order.userId !== ownerId)
-      throw new ForbiddenException('Order belongs to another customer');
+    if (ownerId && order.userId !== ownerId) throw new NotFoundException('Order not found');
     const state = transitionOrder(order.state as OrderState, next);
     return this.prisma.$transaction(async (tx) => {
       await tx.order.update({ where: { id }, data: { state } });
@@ -125,7 +123,7 @@ export class OrdersService {
       include: { items: { include: { product: true } }, payments: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.userId !== ownerId) throw new ForbiddenException('Order belongs to another customer');
+    if (order.userId !== ownerId) throw new NotFoundException('Order not found');
     return order;
   }
 }

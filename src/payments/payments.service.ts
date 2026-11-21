@@ -9,8 +9,8 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
   ) {}
-  async initiate(orderId: string, key: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+  async initiate(orderId: string, userId: string, key: string) {
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundException('Order not found');
     const previous = await this.prisma.idempotencyRecord.findUnique({ where: { key } });
     const replay = replayOrConflict(

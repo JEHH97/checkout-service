@@ -18,6 +18,16 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1h
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: THROTTLE_LIMIT
+        value: '120'
+      - key: THROTTLE_TTL_MS
+        value: '60000'
+      - key: AUTH_THROTTLE_LIMIT
+        value: '8'
       - key: DEMO_MODE
         value: 'true'
       - key: RUN_SEED

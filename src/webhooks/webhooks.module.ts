@@ -5,8 +5,14 @@ import { OrdersModule } from '../orders/orders.module';
 import { WebhooksController } from './webhooks.controller';
 import { WebhookProcessor } from './webhooks.processor';
 import { DemoPaymentsController } from './demo-payments.controller';
+import { AuthModule } from '../auth/auth.module';
 @Module({
-  imports: [BullModule.registerQueue({ name: 'stripe-events' }), PaymentsModule, OrdersModule],
+  imports: [
+    BullModule.registerQueue({ name: 'stripe-events' }),
+    PaymentsModule,
+    OrdersModule,
+    AuthModule,
+  ],
   controllers: [WebhooksController, DemoPaymentsController],
   providers: [WebhookProcessor],
 })
