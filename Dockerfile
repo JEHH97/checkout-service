@@ -1,4 +1,4 @@
-FROM node:24.11.1-alpine3.22 AS build
+FROM node:26.3.0-alpine3.22 AS build
 WORKDIR /app
 COPY package*.json ./
 COPY scripts/in-dev ./scripts/in-dev
@@ -6,7 +6,7 @@ RUN chmod +x scripts/in-dev && scripts/in-dev npm ci
 COPY . .
 RUN scripts/in-dev npx prisma generate && scripts/in-dev npm run build
 
-FROM node:24.11.1-alpine3.22
+FROM node:26.3.0-alpine3.22
 ENV NODE_ENV=production
 WORKDIR /app
 ENV NPM_CONFIG_CACHE=/tmp/.npm
