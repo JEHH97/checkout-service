@@ -15,4 +15,4 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 EXPOSE 3000
-CMD ["scripts/in-dev", "sh", "-c", "scripts/in-dev npx prisma db push && scripts/in-dev node dist/main.js"]
+CMD ["scripts/in-dev", "sh", "-c", "scripts/in-dev npx prisma db push && if [ \"${RUN_SEED:-false}\" = \"true\" ]; then scripts/in-dev npm run seed; fi && scripts/in-dev node dist/main.js"]

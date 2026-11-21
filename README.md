@@ -6,7 +6,7 @@ Repository: [github.com/JEHH97/checkout-service](https://github.com/JEHH97/check
 
 **Problem.** A payment callback can be delivered more than once, orders can be submitted on network retries, and simultaneous buyers can compete for the last unit. This project makes these failure modes explicit and observable.
 
-**Demo:** [Live API placeholder](https://example.com/demo)
+**Demo:** _coming soon_
 
 ## Architecture
 
@@ -17,10 +17,10 @@ flowchart LR
   API --> PG[("PostgreSQL / Prisma")]
   API --> Redis[("Redis / BullMQ")]
   PG --> Outbox["Transactional outbox"]
-  Outbox --> Worker["Worker"]
   Stripe["Payment provider"] --> Hook["Signed webhook"]
   Hook --> Redis
-  Worker --> PG
+  Redis --> Processor["BullMQ processor in API"]
+  Processor --> PG
 ```
 
 ```mermaid
@@ -51,7 +51,7 @@ stateDiagram-v2
 
 ## Run locally
 
-Requirements: Docker Compose and Node.js 24+. One command starts API, worker, PostgreSQL, and Redis:
+Requirements: Docker Compose and Node.js 24+. One command starts the API, PostgreSQL, and Redis. BullMQ jobs are processed by the API process:
 
 ```sh
 cp .env.example .env
@@ -66,7 +66,19 @@ npm run prisma:generate
 npm run seed
 ```
 
-Demo admin: `admin@example.test` / `DemoAdmin2026!` (local showcase only; rotate before use). The seed creates three generic products.
+The idempotent seed creates the public demo account `admin@example.test` / `DemoAdmin2026!` and three generic products. These public credentials are for the demo only; never reuse them for another service.
+
+## Try the demo in 5 steps
+
+The hosted demo remains **coming soon** until it is deployed. When available, open the API root URL (it redirects to Swagger at `/docs`) and:
+
+1. In `POST /auth/login`, submit `{"email":"admin@example.test","password":"DemoAdmin2026!"}` and copy the returned `accessToken`.
+2. Select **Authorize** in Swagger and paste the token. The seeded account is an admin; the credentials are public and demo-only.
+3. Use `GET /products` to choose a product. In `POST /cart/items`, add its `productId` and a `quantity` of `1`.
+4. Call `POST /orders` with a unique `Idempotency-Key`. Copy the returned order `id`, then call `POST /payments/{orderId}/intents` with another unique `Idempotency-Key`.
+5. Call `POST /demo/orders/{orderId}/pay` to simulate payment, then `GET /orders/{orderId}`. The order should show `state: "paid"`.
+
+The fake-payment completion route is enabled only when `DEMO_MODE=true` and `PAYMENT_ADAPTER=fake`; production deployments must leave `DEMO_MODE` unset or false. The API process itself runs the BullMQ processor, so the demo has no separate worker service.
 
 ## Tests and checks
 
@@ -77,7 +89,7 @@ npm run check
 
 `check` runs lint, formatting verification, TypeScript, unit coverage (domain threshold 70%), database/Redis integration smoke checks when those services are configured, the Supertest checkout flow, production build, and the forbidden-content scanner. Tests use a fake payment gateway; no Stripe calls are made. For container-backed integration checks, keep the Compose services running.
 
-HTTP examples are in [`docs/requests.http`](docs/requests.http). Deployment and Stripe test webhook instructions are in [`DEPLOY.md`](DEPLOY.md).
+HTTP examples are in [`docs/requests.http`](docs/requests.http). Free-tier demo deployment instructions are in [`DEPLOY.md`](DEPLOY.md). To use Stripe instead of the demo adapter, configure the Stripe test keys and `PAYMENT_ADAPTER=stripe` in a separate deployment; the demo blueprint does not configure Stripe.
 
 ## License
 

@@ -1,5 +1,5 @@
 import { Controller, Headers, Param, Post, BadRequestException, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @ApiTags('payments')
@@ -7,10 +7,9 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
-  @Post(':orderId/intents') initiate(
-    @Param('orderId') id: string,
-    @Headers('idempotency-key') key?: string,
-  ) {
+  @Post(':orderId/intents')
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  initiate(@Param('orderId') id: string, @Headers('idempotency-key') key?: string) {
     if (!key) throw new BadRequestException('Idempotency-Key header is required');
     return this.payments.initiate(id, key);
   }

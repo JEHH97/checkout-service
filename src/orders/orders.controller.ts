@@ -1,13 +1,14 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   Headers,
   Param,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OrderState } from '../domain/order-state';
@@ -17,7 +18,9 @@ import { Request } from 'express';
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
-  @Post() create(
+  @Post()
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  create(
     @Req() req: Request & { user?: { sub: string } },
     @Headers('idempotency-key') key?: string,
   ) {
@@ -28,5 +31,10 @@ export class OrdersController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string, @Req() req: Request & { user?: { sub: string } }) {
     return this.orders.transition(id, OrderState.Cancelled, req.user!.sub);
+  }
+
+  @Get(':id')
+  find(@Param('id') id: string, @Req() req: Request & { user?: { sub: string } }) {
+    return this.orders.find(id, req.user!.sub);
   }
 }

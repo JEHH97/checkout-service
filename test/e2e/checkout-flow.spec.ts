@@ -11,6 +11,7 @@ describe('checkout HTTP flow', () => {
 
   beforeAll(async () => {
     process.env.PAYMENT_ADAPTER = 'fake';
+    process.env.DEMO_MODE = 'true';
     app = await NestFactory.create(AppModule, { rawBody: true });
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
@@ -85,6 +86,54 @@ describe('checkout HTTP flow', () => {
     expect(state).toBe('paid');
     expect((await prisma.product.findUnique({ where: { id: product.id } }))?.available).toBe(1);
     expect(await prisma.webhookEvent.findUnique({ where: { id: event.id } })).not.toBeNull();
+  });
+
+  it('completes a fake checkout through the API-only demo trigger, gated by DEMO_MODE', async () => {
+    const registration = await request(server)
+      .post('/auth/register')
+      .send({ email: `demo-${Date.now()}@example.test`, password: 'DemoPass123!' })
+      .expect(201);
+    const token = registration.body.accessToken as string;
+    const product = await prisma.product.create({
+      data: { name: 'Demo Coffee Mug', priceCents: 1400, available: 2 },
+    });
+
+    await request(server)
+      .post('/cart/items')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId: product.id, quantity: 1 })
+      .expect(201);
+    const order = await request(server)
+      .post('/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'demo-order-key')
+      .expect(201);
+    const payment = await request(server)
+      .post(`/payments/${order.body.id}/intents`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'demo-payment-key')
+      .expect(201);
+    expect(payment.body.status).toBe('requires_payment_method');
+
+    process.env.DEMO_MODE = 'false';
+    await request(server).post(`/demo/orders/${order.body.id}/pay`).expect(404);
+    process.env.DEMO_MODE = 'true';
+
+    await request(server).post(`/demo/orders/${order.body.id}/pay`).expect(201);
+    let state = 'awaiting_payment';
+    for (let attempt = 0; attempt < 30 && state !== 'paid'; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const current = await request(server)
+        .get(`/orders/${order.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      state = current.body.state as string;
+    }
+    expect(state).toBe('paid');
+  });
+
+  it('redirects the root URL to the Swagger docs', async () => {
+    await request(server).get('/').expect(302).expect('Location', '/docs');
   });
 
   it('releases reserved stock when a customer cancels before payment', async () => {

@@ -11,15 +11,9 @@ import { PaymentsModule } from './payments/payments.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { HealthModule } from './health/health.module';
 import { OutboxModule } from './outbox/outbox.module';
-const redisUrl = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
-const redisConnection = {
-  host: redisUrl.hostname,
-  port: Number(redisUrl.port || 6379),
-  username: redisUrl.username || undefined,
-  password: redisUrl.password ? decodeURIComponent(redisUrl.password) : undefined,
-  tls: redisUrl.protocol === 'rediss:' ? {} : undefined,
-  maxRetriesPerRequest: null,
-};
+import { RootController } from './root.controller';
+import { redisConnectionFromUrl } from './common/redis-connection';
+const redisConnection = redisConnectionFromUrl(process.env.REDIS_URL ?? 'redis://localhost:6379');
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -35,5 +29,6 @@ const redisConnection = {
     HealthModule,
     OutboxModule,
   ],
+  controllers: [RootController],
 })
 export class AppModule {}

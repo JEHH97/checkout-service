@@ -1,11 +1,16 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsInt, IsString, Min } from 'class-validator';
 import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 class AddItemDto {
-  @IsString() productId!: string;
-  @IsInt() @Min(1) quantity!: number;
+  @ApiProperty({ example: 'desk-lamp' })
+  @IsString()
+  productId!: string;
+  @ApiProperty({ example: 1, minimum: 1 })
+  @IsInt()
+  @Min(1)
+  quantity!: number;
 }
 @ApiTags('cart')
 @UseGuards(JwtAuthGuard)

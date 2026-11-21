@@ -1,11 +1,16 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 
 class CredentialsDto {
-  @IsEmail() email!: string;
-  @IsString() @MinLength(8) password!: string;
+  @ApiProperty({ example: 'admin@example.test' })
+  @IsEmail()
+  email!: string;
+  @ApiProperty({ example: 'DemoAdmin2026!' })
+  @IsString()
+  @MinLength(8)
+  password!: string;
 }
 
 @ApiTags('auth')

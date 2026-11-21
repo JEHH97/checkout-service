@@ -118,4 +118,14 @@ export class OrdersService {
       return { id, state };
     });
   }
+
+  async find(id: string, ownerId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: { include: { product: true } }, payments: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.userId !== ownerId) throw new ForbiddenException('Order belongs to another customer');
+    return order;
+  }
 }

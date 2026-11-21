@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PaymentsController } from './payments.controller';
-import { FakePaymentGateway } from './fake-payment.gateway';
-import { StripePaymentGateway } from './stripe-payment.gateway';
 import { PAYMENT_GATEWAY } from './payment-gateway';
 import { PaymentsService } from './payments.service';
+import { createPaymentGateway } from './payment-gateway.factory';
 import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
@@ -11,10 +10,7 @@ import { AuthModule } from '../auth/auth.module';
   providers: [
     {
       provide: PAYMENT_GATEWAY,
-      useFactory: () =>
-        process.env.PAYMENT_ADAPTER === 'stripe'
-          ? new StripePaymentGateway()
-          : new FakePaymentGateway(),
+      useFactory: () => createPaymentGateway(process.env.PAYMENT_ADAPTER),
     },
     PaymentsService,
   ],
