@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:17.12-alpine3.24
         env:
           POSTGRES_USER: checkout
           POSTGRES_PASSWORD: checkout
@@ -21,7 +21,7 @@ jobs:
           --health-cmd "pg_isready -U checkout -d checkout"
           --health-interval 5s --health-timeout 3s --health-retries 20
       redis:
-        image: redis:7-alpine
+        image: redis:7.4.12-alpine3.22
         ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
@@ -32,8 +32,8 @@ jobs:
       JWT_SECRET: local_ci_only_change_me
       PAYMENT_ADAPTER: fake
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.0.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.0.0
         with:
           node-version: 24
           cache: npm

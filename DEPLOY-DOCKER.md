@@ -4,7 +4,7 @@ This guide runs `ghcr.io/jehh97/checkout-service` with PostgreSQL and Redis host
 
 ## Images and runtime settings
 
-The publishing workflow creates version tags (`vX.Y.Z`), `sha-<short-commit>`, and `latest`. Prefer a version tag for a stable demo. Images target `linux/amd64`, run as the unprivileged `node` user, and have a dependency-aware healthcheck at `/health`.
+The publishing workflow creates version tags (`vX.Y.Z`) and `sha-<short-commit>`; it does not publish a floating `latest` tag. The default release is `v1.0.1`. Images target `linux/amd64`, run as the unprivileged `node` user, and have a dependency-aware healthcheck at `/health`.
 
 If the GHCR package is private, authenticate on the deployment host with a GitHub PAT that has `read:packages`:
 
@@ -21,7 +21,7 @@ cp deploy/.env.example deploy/.env
 openssl rand -hex 32 # repeat separately for POSTGRES_PASSWORD, REDIS_PASSWORD, JWT_SECRET
 ```
 
-`APP_PORT` controls the host port (default `3001`); the container port is always `3000`. Set `JWT_EXPIRES_IN` to the required token lifetime, and configure `TRUST_PROXY_HOPS` to the exact number of trusted reverse proxies (default `1`). Never trust forwarded headers from untrusted clients.
+`APP_BIND_ADDRESS` and `APP_PORT` control the host binding (defaults `127.0.0.1` and `3001`); the container port is always `3000`. Set `JWT_EXPIRES_IN` to the required token lifetime, and configure `TRUST_PROXY_HOPS` to the exact number of trusted reverse proxies (default `1`). Never trust forwarded headers from untrusted clients.
 
 `RUN_DB_PUSH=true` applies the Prisma schema at startup (the default); set it to `false` only if schema rollout is managed separately. `RUN_SEED=true` runs the idempotent demo seed at startup; set it to `false` to disable the public demo account and products. Repeated seeding resets the demo account password to `DemoAdmin2026!`.
 
@@ -32,11 +32,11 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.prod.yml up -d
 docker compose --env-file deploy/.env -f deploy/docker-compose.prod.yml ps
 ```
 
-The container applies Prisma `db push`, optionally seeds, then starts the API as UID `node`. Prisma's generated-client directory is writable by this non-root user so startup schema management works. PostgreSQL and Redis have readiness healthchecks and persistent volumes; neither has a host-published port.
+The container applies Prisma `db push`, optionally seeds, then starts the API as UID `node`. The root filesystem is read-only; `/tmp` is tmpfs, and the generated Prisma client uses a writable named volume refreshed from the image before startup. PostgreSQL and Redis also run read-only with dropped capabilities, readiness healthchecks, and persistent data volumes; neither has a host-published port. Compose enforces per-service memory and process limits.
 
 ## TLS reverse proxy
 
-Terminate TLS at a reverse proxy. For Caddy, publish the API on loopback only by setting `APP_PORT=127.0.0.1:3001` in the Compose environment file, then use:
+Terminate TLS at a reverse proxy. The API binds to loopback by default (`APP_BIND_ADDRESS=127.0.0.1`). For Caddy, use:
 
 ```caddyfile
 checkout.example.com {
